@@ -1,13 +1,15 @@
-const express = require('express'); // Wir holen uns das Express-Werkzeug
-const app = express();              // Wir erstellen eine App-Instanz
-const port = 3000;                  // Der Server soll auf Port 3000 hören
+require('dotenv').config(); // 1. Umgebungsvariablen laden (ganz oben!)
 
-// Wenn jemand die Startseite aufruft, schicke eine Antwort
-app.get('/', (req, res) => {
-  res.send('Hallo PetFriends! Das Backend lebt.');
-});
+const express = require('express');
+const authRoutes = require('./routes/auth'); // 2. Routen importieren
 
-// Starte den Server
-app.listen(port, () => {
-  console.log(`Server läuft auf http://localhost:${port}`);
+const app = express();
+app.use(express.json()); // 3. JSON-Sortierer aktivieren
+
+// 4. Die Routen unter dem Pfad /api/auth registrieren
+app.use('/api/auth', authRoutes);
+
+const PORT = 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 PetFriends-Server läuft auf http://localhost:${PORT}`);
 });
