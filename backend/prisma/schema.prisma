@@ -8,7 +8,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Hier definieren wir die Tabelle "users" laut eurer Spezifikation
+// EINZIGER User-Block: Wir kombinieren die Basisdaten mit der neuen Haustier-Liste
 model User {
   id            Int      @id @default(autoincrement())
   email         String   @unique
@@ -19,5 +19,27 @@ model User {
   isVerified    Boolean  @default(false)
   createdAt     DateTime @default(now()) @map("created_at")
 
+  // NEU: Die Verbindung zu den Haustieren
+  pets          Pet[]
+
   @@map("users")
+}
+
+// DAS NEUE MODEL: Haustiere
+model Pet {
+  id        Int      @id @default(autoincrement())
+  name      String
+  species   String   // z.B. Hund, Katze, Hamster
+  breed     String?  // Rasse (optional)
+  age       Int?     // Alter (optional)
+  image     String?  // URL zum Profilbild (optional)
+
+  // BEZIEHUNG: Jedes Tier gehört einem Besitzer (User)
+  owner     User     @relation(fields: [ownerId], references: [id])
+  ownerId   Int      // Fremdschlüssel
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("pets")
 }

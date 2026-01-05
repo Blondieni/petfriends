@@ -1,13 +1,13 @@
-require('dotenv').config(); // 1. Umgebungsvariablen laden (ganz oben!)
-
+require('dotenv').config();
 const express = require('express');
-const authRoutes = require('./routes/auth'); // 2. Routen importieren
+const authRoutes = require('./routes/auth');
+const petRoutes = require('./routes/pets'); // 1. Importieren
 
 const app = express();
-app.use(express.json()); // 3. JSON-Sortierer aktivieren
+app.use(express.json());
 
-// 4. Die Routen unter dem Pfad /api/auth registrieren
 app.use('/api/auth', authRoutes);
+app.use('/api/pets', petRoutes); // 2. Registrieren unter /api/pets
 
 const PORT = 3000;
 app.listen(PORT, () => {
