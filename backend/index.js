@@ -6,6 +6,9 @@ const petRoutes = require('./routes/pets'); // 1. Importieren
 const app = express();
 app.use(express.json());
 
+// Statische Dateien verfügbar machen (Bilder-Ordner)
+app.use('/uploads', express.static('uploads'));
+
 app.use('/api/auth', authRoutes);
 app.use('/api/pets', petRoutes); // 2. Registrieren unter /api/pets
 

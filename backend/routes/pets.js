@@ -1,55 +1,64 @@
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
-const authMiddleware = require('../middleware/authMiddleware'); // Der Türsteher
+const authMiddleware = require('../middleware/authMiddleware');
+
+const multer = require('multer');
+const path = require('path');
 
 const prisma = new PrismaClient();
 
-// ROUTE: Ein neues Haustier anlegen
-// Wir fügen 'authMiddleware' hinzu -> Nur mit gültigem Token erreichbar!
-router.post('/add', authMiddleware, async (req, res) => {
-  try {
-    const { name, species, breed, age } = req.body;
-    
-    // Die userId kommt automatisch aus dem Token (via Middleware)
-    const userId = req.userData.userId;
-
-    const newPet = await prisma.pet.create({
-      data: {
-        name: name,
-        species: species,
-        breed: breed,
-        age: parseInt(age), // Sicherstellen, dass es eine Zahl ist
-        ownerId: userId    // Hier wird die Verknüpfung gespeichert
-      }
-    });
-
-    res.status(201).json({
-      message: "Haustier erfolgreich angelegt",
-      pet: newPet
-    });
-  } catch (error) {
-    console.error("FEHLER BEIM HAUSTIER ANLEGEN:", error);
-    res.status(500).json({ error: "Server-Fehler beim Speichern des Haustiers" });
+// 1. Multer Konfiguration
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads/pets/'); 
+  },
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + '-' + file.originalname);
   }
 });
 
-// ROUTE: Alle Haustiere des eingeloggten Nutzers abrufen
-router.get('/my-pets', authMiddleware, async (req, res) => {
+const upload = multer({ storage: storage });
+
+// 2. DIE KORRIGIERTE ROUTE (upload.single steht jetzt VOR authMiddleware)
+// So stellt Multer sicher, dass req.body befüllt ist, wenn der Code danach greift.
+router.post('/add', upload.single('image'), authMiddleware, async (req, res) => {
   try {
-    // Der Türsteher (Middleware) hat uns die ID schon in req.userData gegeben
+    // Jetzt ist req.body nicht mehr undefined, weil Multer es ausgepackt hat
+    const { name, species, breed, age } = req.body;
     const userId = req.userData.userId;
 
-    // In der Datenbank nach allen Tieren suchen, die diesem User gehören
-    const myPets = await prisma.pet.findMany({
-      where: {
+    const imagePath = req.file ? `/uploads/pets/${req.file.filename}` : null;
+
+    const newPet = await prisma.pet.create({
+      data: {
+        name,
+        species,
+        breed,
+        age: age ? parseInt(age) : null,
+        image: imagePath,
         ownerId: userId
-      },
-      orderBy: {
-        createdAt: 'desc' // Die neuesten zuerst anzeigen
       }
     });
 
+    res.status(201).json({ 
+      message: "Haustier mit Bild angelegt", 
+      pet: newPet 
+    });
+  } catch (error) {
+    console.error("UPLOAD FEHLER:", error);
+    res.status(500).json({ error: "Fehler beim Hochladen oder Speichern" });
+  }
+});
+
+// 3. GET: Alle Haustiere des Nutzers
+router.get('/my-pets', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.userData.userId;
+    const myPets = await prisma.pet.findMany({
+      where: { ownerId: userId },
+      orderBy: { createdAt: 'desc' }
+    });
     res.json(myPets);
   } catch (error) {
     console.error("FEHLER BEIM LADEN DER TIERE:", error);
@@ -57,13 +66,12 @@ router.get('/my-pets', authMiddleware, async (req, res) => {
   }
 });
 
-// ROUTE: Ein bestimmtes Haustier löschen
+// 4. DELETE: Haustier löschen
 router.delete('/:id', authMiddleware, async (req, res) => {
   try {
     const petId = parseInt(req.params.id);
     const userId = req.userData.userId;
 
-    // 1. Erst prüfen: Gehört das Tier wirklich dem Nutzer?
     const pet = await prisma.pet.findUnique({
       where: { id: petId }
     });
@@ -72,7 +80,6 @@ router.delete('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "Nicht erlaubt oder Tier nicht gefunden." });
     }
 
-    // 2. Wenn ja: Löschen
     await prisma.pet.delete({
       where: { id: petId }
     });
@@ -84,14 +91,13 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   }
 });
 
-// ROUTE: Ein Haustier aktualisieren
+// 5. PUT: Haustier aktualisieren
 router.put('/:id', authMiddleware, async (req, res) => {
   try {
     const petId = parseInt(req.params.id);
     const userId = req.userData.userId;
     const { name, species, breed, age } = req.body;
 
-    // 1. Sicherheit: Gehört das Tier dem Nutzer?
     const pet = await prisma.pet.findUnique({
       where: { id: petId }
     });
@@ -100,7 +106,6 @@ router.put('/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: "Nicht erlaubt oder Tier nicht gefunden." });
     }
 
-    // 2. Daten aktualisieren
     const updatedPet = await prisma.pet.update({
       where: { id: petId },
       data: {
