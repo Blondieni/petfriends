@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { PrismaClient } = require('@prisma/client');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const prisma = new PrismaClient();
@@ -13,7 +13,13 @@ router.post('/register', async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = await prisma.user.create({
-      data: { email, passwordHash: hashedPassword, firstName, lastName, role: 'PRIVAT' }
+      data: { 
+        email, 
+        passwordHash: hashedPassword, 
+        firstName, 
+        lastName, 
+        role: 'PRIVAT' 
+      }
     });
 
     res.status(201).json({ message: "Registrierung erfolgreich" });
@@ -22,7 +28,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// LOGIN (Jetzt mit JWT!)
+// LOGIN (Jetzt mit Namen in der Antwort!)
 router.post('/login', async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -38,11 +44,15 @@ router.post('/login', async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: '24h' }
     );
-    
 
-    res.json({ message: "Login erfolgreich", token: token });
+    // HIER GEÄNDERT: Wir schicken jetzt auch den firstName als "username" mit
+    res.json({ 
+      message: "Login erfolgreich", 
+      token: token, 
+      username: user.firstName 
+    });
+
   } catch (error) {
-    // Diese Zeile hilft uns jetzt beim Suchen:
     console.error("DEBUG LOGIN FEHLER:", error); 
     res.status(500).json({ error: "Fehler beim Login" });
   }
