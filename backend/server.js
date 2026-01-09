@@ -8,6 +8,9 @@ const passport = require('passport');
 const prisma = new PrismaClient();
 const petRoutes = require('./routes/pets');
 const authRoutes = require('./routes/auth');
+const matchingRoutes = require('./routes/matching'); // Neu hinzugefügt
+const messageRoutes = require('./routes/messages');
+
 
 const app = express();
 
@@ -15,13 +18,15 @@ app.use(cors());
 app.use(express.json());
 app.use(passport.initialize());
 require('./config/passport')(passport);
+
+// Routen-Konfiguration
 app.use('/api/auth', authRoutes);
+app.use('/api/pets', petRoutes);
+app.use('/api/matching', matchingRoutes); // Neu hinzugefügt
+app.use('/api/messages', messageRoutes);
 
 // Statische Bilder
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Routen
-app.use('/api/pets', petRoutes);
 
 // --- NEU: Verbindungstest für PostgreSQL/Prisma ---
 async function testDbConnection() {

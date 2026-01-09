@@ -3,7 +3,10 @@ import Login from './components/Login.vue'
 import Dashboard from './components/Dashboard.vue'
 import Register from './components/Register.vue'
 import CreatePet from './components/CreatePet.vue'
-import EditPet from './components/EditPet.vue' // 1. NEU: Import für die Bearbeiten-Seite
+import EditPet from './components/EditPet.vue'
+import Explore from './components/Explore.vue'
+import ChatView from './components/ChatView.vue'
+import InboxView from './components/InboxView.vue' // 1. NEU: Postfach Import
 
 const routes = [
   { path: '/', redirect: '/login' },
@@ -11,11 +14,18 @@ const routes = [
   { path: '/register', name: 'Register', component: Register },
   { path: '/dashboard', name: 'Dashboard', component: Dashboard },
   { path: '/create-pet', name: 'CreatePet', component: CreatePet },
+  { path: '/edit-pet/:id', name: 'EditPet', component: EditPet },
+  { path: '/explore', name: 'Explore', component: Explore },
   { 
-    // 2. NEU: Die Route für das Bearbeiten. Das ":id" ist wichtig!
-    path: '/edit-pet/:id', 
-    name: 'EditPet', 
-    component: EditPet 
+    path: '/chat/:userId', 
+    name: 'Chat', 
+    component: ChatView 
+  },
+  { 
+    // 2. NEU: Die Inbox-Route für die Chat-Übersicht (Anforderung IK-02)
+    path: '/inbox', 
+    name: 'Inbox', 
+    component: InboxView 
   }
 ]
 
@@ -24,14 +34,15 @@ const router = createRouter({
   routes
 })
 
-// 3. Der angepasste Türsteher
+// 3. Der Türsteher (Erweitert um Inbox und Chat)
 router.beforeEach((to, from, next) => {
   const isAuthenticated = localStorage.getItem('token')
   
-  // Wir prüfen jetzt, ob die Seite geschützt werden muss
-  // dashboard, create-pet und alle Pfade, die mit /edit-pet/ anfangen
   const isProtectedRoute = to.path === '/dashboard' || 
                            to.path === '/create-pet' || 
+                           to.path === '/explore' || 
+                           to.path === '/inbox' || // NEU: Inbox schützen
+                           to.path.startsWith('/chat/') || 
                            to.path.startsWith('/edit-pet/')
 
   if (isProtectedRoute && !isAuthenticated) {

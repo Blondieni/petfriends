@@ -12,8 +12,19 @@
       </div>
       
       <div>
-        <label class="block text-sm font-medium text-gray-700">Tierart / Rasse</label>
-        <input v-model="pet.breed" type="text" placeholder="z.B. Golden Retriever" required
+        <label class="block text-sm font-medium text-gray-700">Tierart</label>
+        <select v-model="pet.type" required
+          class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none bg-white">
+          <option value="Hund">Hund</option>
+          <option value="Katze">Katze</option>
+          <option value="Kleintier">Kleintier</option>
+          <option value="Vogel">Vogel</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-gray-700">Rasse (optional)</label>
+        <input v-model="pet.breed" type="text" placeholder="z.B. Golden Retriever"
           class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
       </div>
       
@@ -21,6 +32,13 @@
         <label class="block text-sm font-medium text-gray-700">Alter (in Jahren)</label>
         <input v-model="pet.age" type="number" placeholder="z.B. 3" required
           class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+      </div>
+
+      <div>
+        <label class="block text-sm font-semibold text-gray-700">Beschreibung / Charakter</label>
+        <textarea v-model="pet.description" 
+          placeholder="Erzähle etwas über das Wesen, Vorlieben oder Besonderheiten..." 
+          class="w-full px-4 py-2 mt-1 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none h-32 resize-none"></textarea>
       </div>
 
       <div>
@@ -40,37 +58,39 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import api from '../services/api' // WICHTIG: Die API-Verbindung importieren
+import api from '../services/api'
 
 const router = useRouter()
+
+// Pet-Objekt initialisieren (Namen passend zum Backend-Schema)
 const pet = ref({
   name: '',
+  type: 'Hund', // Entspricht der Spalte 'type' im Prisma-Model
   breed: '',
   age: '',
-  species: 'Hund' // Standardwert für dein Backend
+  description: '' // NEU: Feld für die Beschreibung
 })
 
 const selectedFile = ref(null)
 
-// NEU: Diese Funktion merkt sich die Datei, wenn du sie auswählst
 const handleFileUpload = (event) => {
   selectedFile.value = event.target.files[0]
 }
 
 const savePet = async () => {
   try {
-    // Da wir ein Bild mitschicken, nutzen wir FormData ("digitaler Briefumschlag")
     const formData = new FormData()
     formData.append('name', pet.value.name)
+    formData.append('type', pet.value.type) // Wichtig: type statt species
     formData.append('breed', pet.value.breed)
-    formData.append('species', pet.value.species)
     formData.append('age', pet.value.age)
+    formData.append('description', pet.value.description) // Beschreibung mitschicken
     
     if (selectedFile.value) {
-      formData.append('image', selectedFile.value) // Das Feld muss "image" heißen wie im Backend!
+      formData.append('image', selectedFile.value) // Entspricht upload.single('image') im Backend
     }
 
-    // Ab an das Backend (Route: /api/pets/add)
+    // API-Call an /pets/add
     await api.post('/pets/add', formData, {
       headers: {
         'Content-Type': 'multipart/form-data'
@@ -81,7 +101,8 @@ const savePet = async () => {
     router.push('/dashboard')
   } catch (error) {
     console.error('Fehler beim Speichern:', error)
-    alert('Fehler: Haustier konnte nicht gespeichert werden.')
+    const errorMsg = error.response?.data?.error || 'Haustier konnte nicht gespeichert werden.'
+    alert('Hoppla! ' + errorMsg)
   }
 }
 </script>

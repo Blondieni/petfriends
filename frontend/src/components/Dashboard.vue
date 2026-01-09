@@ -56,6 +56,38 @@
         Jetzt das erste Profil erstellen
       </router-link>
     </div>
+
+    <div class="mt-12 border-t pt-8">
+      <h2 class="text-2xl font-bold text-pink-600 mb-6 flex items-center">
+        <span class="mr-2">❤️</span> Deine Matches
+      </h2>
+
+      <div v-if="matches.length === 0" class="text-gray-500 italic p-4 bg-white rounded-lg border border-gray-100">
+        Noch keine Matches. Geh auf Entdeckungstour!
+      </div>
+
+      <div v-else class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div v-for="match in matches" :key="match.id" 
+             class="bg-white rounded-xl shadow-md overflow-hidden border-2 border-pink-100 transition-transform hover:scale-105">
+          <img v-if="match.image" :src="`http://localhost:5000${match.image}`" 
+               class="w-full h-32 object-cover" alt="Match Foto" />
+          <div v-else class="w-full h-32 bg-gray-100 flex items-center justify-center text-xs text-gray-400">
+            Kein Foto
+          </div>
+          <div class="p-3">
+            <h3 class="font-bold text-lg text-gray-800">{{ match.name }}</h3>
+            <p class="text-sm text-gray-600">{{ match.species }} • {{ match.breed }}</p>
+            
+            <router-link 
+              :to="`/chat/${match.ownerId}`" 
+              class="mt-2 w-full bg-pink-500 text-white text-xs py-2 rounded-lg hover:bg-pink-600 transition inline-block text-center"
+            >
+              Nachricht schreiben
+            </router-link>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -67,8 +99,8 @@ import api from '../services/api'
 const router = useRouter()
 const username = ref(localStorage.getItem('username') || 'Nutzer')
 const pets = ref([]) 
+const matches = ref([]) 
 
-// Haustiere vom Backend laden
 const loadPets = async () => {
   try {
     const response = await api.get('/pets/my-pets')
@@ -78,14 +110,22 @@ const loadPets = async () => {
   }
 }
 
-// Lösch-Logik
+const fetchMatches = async () => {
+  try {
+    const response = await api.get('/matching/my-matches');
+    matches.value = response.data;
+  } catch (error) {
+    console.error("Fehler beim Laden der Matches", error);
+  }
+};
+
 const deletePet = async (id) => {
   if (!confirm('Möchtest du dieses Haustier-Profil wirklich löschen?')) return;
 
   try {
     await api.delete(`/pets/${id}`);
     pets.value = pets.value.filter(pet => pet.id !== id);
-    console.log(`Tier mit ID ${id} wurde gelöscht.`);
+    fetchMatches();
   } catch (error) {
     console.error('Fehler beim Löschen:', error);
     alert('Hoppla! Das Tier konnte nicht gelöscht werden.');
@@ -94,6 +134,7 @@ const deletePet = async (id) => {
 
 onMounted(() => {
   loadPets()
+  fetchMatches()
 })
 
 const handleLogout = () => {

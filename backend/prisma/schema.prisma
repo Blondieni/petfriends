@@ -8,38 +8,73 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// EINZIGER User-Block: Wir kombinieren die Basisdaten mit der neuen Haustier-Liste
+// Erweitertes User-Model
 model User {
-  id            Int      @id @default(autoincrement())
-  email         String   @unique
-  passwordHash  String   @map("password_hash")
-  firstName     String?  @map("first_name")
-  lastName      String?  @map("last_name")
-  role          String   @default("PRIVAT")
-  isVerified    Boolean  @default(false)
-  createdAt     DateTime @default(now()) @map("created_at")
+  id           Int      @id @default(autoincrement())
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  firstName    String?  @map("first_name")
+  lastName     String?  @map("last_name")
+  zipCode      String?  @map("zip_code") // NEU: PLZ
+  role         String   @default("PRIVAT")
+  isVerified   Boolean  @default(false)
+  createdAt    DateTime @default(now()) @map("created_at")
 
-  // NEU: Die Verbindung zu den Haustieren
-  pets          Pet[]
+  // Relationen
+  pets             Pet[]
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
 
   @@map("users")
 }
 
-// DAS NEUE MODEL: Haustiere
+// Erweitertes Pet-Model
 model Pet {
-  id        Int      @id @default(autoincrement())
-  name      String
-  species   String   // z.B. Hund, Katze, Hamster
-  breed     String?  // Rasse (optional)
-  age       Int?     // Alter (optional)
-  image     String?  // URL zum Profilbild (optional)
+  id          Int      @id @default(autoincrement())
+  name        String
+  type        String   // z.B. Hund, Katze (aus Snippet übernommen)
+  breed       String?  
+  age         Int?
+  description String?  // NEU: Beschreibung des Tiers
+  imageUrl    String?  @map("image_url") // Mapping aus Snippet
+  
+  // Beziehung zum Besitzer
+  ownerId     Int      @map("owner_id") // Mapping aus Snippet
+  owner       User     @relation(fields: [ownerId], references: [id])
 
-  // BEZIEHUNG: Jedes Tier gehört einem Besitzer (User)
-  owner     User     @relation(fields: [ownerId], references: [id])
-  ownerId   Int      // Fremdschlüssel
+  // Relationen für Likes
+  likesSent     Like[] @relation("LikesSent")
+  likesReceived Like[] @relation("LikesReceived")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("pets")
+}
+
+// Like-Model
+model Like {
+  id         Int      @id @default(autoincrement())
+  fromPetId  Int      @map("from_pet_id")
+  fromPet    Pet      @relation("LikesSent", fields: [fromPetId], references: [id])
+  toPetId    Int      @map("to_pet_id")
+  toPet      Pet      @relation("LikesReceived", fields: [toPetId], references: [id])
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([fromPetId, toPetId])
+  @@map("likes")
+}
+
+// Nachrichten-Model
+model Message {
+  id         Int      @id @default(autoincrement())
+  content    String
+  isRead     Boolean  @default(false) @map("is_read")
+  createdAt  DateTime @default(now()) @map("created_at")
+  senderId   Int      @map("sender_id")
+  sender     User     @relation("SentMessages", fields: [senderId], references: [id])
+  receiverId Int      @map("receiver_id")
+  receiver   User     @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@map("messages")
 }

@@ -68,7 +68,7 @@ const handleLogin = async () => {
   } catch (err) {
     console.error("Login-Fehler Details:", err);
     // Zeigt eine Fehlermeldung an, falls die Daten falsch sind oder der Server nicht antwortet
-    error.value = err.response?.data?.message || 'Login fehlgeschlagen. Bitte Daten prüfen.';
+    error.value = err.response?.data?.error || 'Login fehlgeschlagen. Bitte Daten prüfen.';
   }
 };
 </script>
