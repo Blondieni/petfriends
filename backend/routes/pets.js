@@ -9,6 +9,7 @@ const prisma = new PrismaClient();
 
 /**
  * MULTER KONFIGURATION
+ * Speichert Bilder im Ordner uploads/pets/
  */
 const storage = multer.diskStorage({
   destination: (req, file, cb) => { 
@@ -21,7 +22,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({ 
   storage: storage,
-  limits: { fileSize: 2 * 1024 * 1024 } 
+  limits: { fileSize: 2 * 1024 * 1024 } // Max 2MB
 });
 
 /**
@@ -41,25 +42,22 @@ const validatePetData = (name, age) => {
  */
 router.post('/add', authMiddleware, upload.single('image'), async (req, res) => {
   try {
-    // 1. Eingabedaten extrahieren (type statt species laut neuem Schema)
     const { name, type, breed, age, description } = req.body;
     
     const error = validatePetData(name, age);
     if (error) return res.status(400).json({ error });
 
     const userId = req.userData.userId;
-    // Pfad für imageUrl (statt image)
     const imagePath = req.file ? `/uploads/pets/${req.file.filename}` : null;
 
-    // 2. In Datenbank speichern
     const newPet = await prisma.pet.create({
       data: { 
         name, 
-        type, // NEU laut Schema
+        type, 
         breed, 
         age: age ? parseInt(age) : null, 
-        description, // NEU: Beschreibung hinzugefügt
-        imageUrl: imagePath, // NEU laut Schema
+        description, 
+        imageUrl: imagePath, 
         ownerId: userId 
       }
     });
@@ -96,7 +94,7 @@ router.put('/:id', authMiddleware, upload.single('image'), async (req, res) => {
         type, 
         breed, 
         age: age ? parseInt(age) : null, 
-        description, // NEU: Beschreibung auch beim Update
+        description, 
         imageUrl: imagePath 
       }
     });
@@ -124,25 +122,48 @@ router.get('/my-pets', authMiddleware, async (req, res) => {
 
 /**
  * GET: EXPLORE LISTE (Anforderung SU-03)
+ * Filtert eigene Tiere und bereits interagierte Tiere aus.
  */
 router.get('/explore', authMiddleware, async (req, res) => {
   try {
     const userId = req.userData.userId;
 
+    // 1. Alle IDs deiner eigenen Haustiere holen
+    const myPets = await prisma.pet.findMany({
+      where: { ownerId: userId },
+      select: { id: true }
+    });
+    const myPetIds = myPets.map(p => p.id);
+
+    // 2. Alle Tier-IDs finden, die von deinen Tieren bereits geliked wurden
+    const alreadyLikedInteractions = await prisma.like.findMany({
+      where: {
+        fromPetId: { in: myPetIds }
+      },
+      select: { toPetId: true }
+    });
+    const alreadyLikedIds = alreadyLikedInteractions.map(l => l.toPetId);
+
+    // 3. Suche Tiere: NICHT eigene und NICHT bereits gelikte
     const otherPets = await prisma.pet.findMany({
-      where: { ownerId: { not: userId } },
+      where: {
+        ownerId: { not: userId },      // Nicht die eigenen Tiere
+        id: { notIn: alreadyLikedIds } // Nicht die bereits gelikten Tiere
+      },
       include: {
         owner: { 
           select: { 
             firstName: true, 
-            zipCode: true // WICHTIG: PLZ für den Frontend-Filter mitladen
+            zipCode: true 
           } 
         } 
       }
     });
+
     res.json(otherPets);
   } catch (error) {
-    res.status(500).json({ error: "Fehler beim Laden" });
+    console.error("Fehler beim Laden der Explore-Liste:", error);
+    res.status(500).json({ error: "Fehler beim Laden der Liste" });
   }
 });
 
